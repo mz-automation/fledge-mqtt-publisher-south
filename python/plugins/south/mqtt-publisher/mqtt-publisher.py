@@ -1,26 +1,13 @@
 
 
 import asyncio
-import random
 import copy
 import json
 import logging
-import re
-import sys
-import uuid
 
-import paho.mqtt.publish as mqtt_publish
 import paho.mqtt.client as mqtt_client
 
 from fledge.common import logger
-from fledge.plugins.common import utils
-from fledge.services.south import exceptions
-from fledge.services.south.ingest import Ingest
-from fledge.common.plugin_discovery import PluginDiscovery
-from fledge.services.core.api import south
-from fledge.services.core.api import north
-import binascii
-import async_ingest
 import json
 
 # MQTT config
@@ -59,19 +46,33 @@ _DEFAULT_CONFIG = {
         'displayName': 'MQTT Broker Port',
         'mandatory': 'true'
     },
+    'username': {
+        'description': 'Username for broker authentication',
+        'type': 'string',
+        'default': '',
+        'order': '3',
+        'displayName': 'Username'
+    },
+    'password': {
+        'description': 'Password for broker authentication',
+        'type': 'string',
+        'default': '',
+        'order': '4',
+        'displayName': 'Password'
+    },
     'keepAliveInterval': {
         'description': 'Maximum period in seconds allowed between communications with the broker. If no other messages are being exchanged, '
                         'this controls the rate at which the client will send ping messages to the broker.',
         'type': 'integer',
         'default': '60',
-        'order': '3',
+        'order': '5',
         'displayName': 'Keep Alive Interval'
     },
     'topic': {
         'description': 'The subscription topic to publish to subscribers',
         'type': 'string',
         'default': 'PivotCommand',
-        'order': '4',
+        'order': '6',
         'displayName': 'Topic To Publish',
         'mandatory': 'true'
     },
@@ -79,28 +80,14 @@ _DEFAULT_CONFIG = {
         'description': 'The desired quality of service level for the subscription',
         'type': 'integer',
         'default': '0',
-        'order': '5',
+        'order': '7',
         'displayName': 'QoS Level',
         'minimum': '0',
         'maximum': '2'
-    },
-    'assetName': {
-        'description': 'Name of Asset',
-        'type': 'string',
-        'default': 'mqtt-',
-        'order': '6',
-        'displayName': 'Asset Name',
-        'mandatory': 'true'
-    },
-    'gpiopin': {
-        'description': 'The GPIO pin into which the DHT11 data pin is connected',
-        'type': 'integer',
-        'order':'7',
-        'default': '4'
     }
 }
 
-def receive_config():
+def plugin_poll(handle):
     return
 
 def plugin_info():
@@ -116,6 +103,14 @@ def plugin_info():
     }
 
 def plugin_init(config):
+    """Registers MQTT Publisher Client
+
+    Args:
+        config: JSON configuration document for the South plugin configuration category
+    Returns:
+        handle: JSON object to be used in future calls to the plugin
+    Raises:
+    """
     _LOGGER.info("Publisher initializing")
     handle = copy.deepcopy(config)
     handle["_mqtt"] = MqttPublisherClient(handle)
@@ -179,11 +174,13 @@ def plugin_operation(handle, operation, params):
     handle["_mqtt"].mqtt_client.publish(str(operation),payload_json)
     return True
 
-# def plugin_poll(handle):
-#     _LOGGER.info("in plugin_poll")
-#     return None
-
 def plugin_register_ingest(handle, callback, ingest_ref):
+    """ Required plugin interface component to communicate to South C server
+    Args:
+        handle: handle returned by the plugin initialisation call
+        callback: C opaque object required to passed back to C->ingest method
+        ingest_ref: C opaque object required to passed back to C->ingest method
+    """
     global c_callback, c_ingest_ref
     c_callback = callback
     c_ingest_ref = ingest_ref
@@ -211,9 +208,6 @@ class MqttPublisherClient(object):
 
     def on_disconnect(self, client, userdata, rc):
         self.mqtt_client.disconnect()
-        pass
-
-    def on_publish(self, client, data, granted_qos):
         pass
 
     def start(self):
