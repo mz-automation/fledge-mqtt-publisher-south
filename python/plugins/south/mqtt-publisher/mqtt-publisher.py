@@ -7,6 +7,13 @@ import logging
 
 import paho.mqtt.client as mqtt_client
 
+import uuid
+
+from fledge.common import logger
+from fledge.plugins.common import utils
+from fledge.services.south import exceptions
+from fledge.services.south.ingest import Ingest
+
 from fledge.common import logger
 import json
 
@@ -95,7 +102,7 @@ def plugin_info():
     return {
         'name':'MQTT Publisher',
         'version':'1.0',
-        'mode':'control',
+        'mode':'control|async',
         'type':'south',
         'sp_control':'',
         'interface': '1.0',
@@ -145,7 +152,7 @@ def plugin_shutdown(handle):
         _LOGGER.info('Shutting down MQTT south plugin...')
         _mqtt = handle["_mqtt"]
         _mqtt.stop()
-        
+
         loop.stop()
         loop = None
     except Exception as e:
@@ -187,19 +194,19 @@ def plugin_register_ingest(handle, callback, ingest_ref):
 
 class MqttPublisherClient(object):
 
-    __slots__ = ['mqtt_client', 'broker_host', 'broker_port', 'topic', 'qos', 'keep_alive_interval', 'asset', 'loop']
+    __slots__ = ['mqtt_client', 'broker_host', 'broker_port', 'username', 'password', 'topic', 'qos', 'keep_alive_interval', 'loop']
 
     def __init__(self, config):
         _LOGGER.info("MQTT Publisher initializing")
         self.mqtt_client = mqtt_client.Client()
         self.broker_host = config['brokerHost']['value']
         self.broker_port = int(config['brokerPort']['value'])
+        self.username = config['username']['value']
+        self.password = config['password']['value']
         self.topic = config['topic']['value']
         self.qos = int(config['qos']['value'])
         self.keep_alive_interval = int(config['keepAliveInterval']['value'])
-        self.asset = config['assetName']['value']
         _LOGGER.info("MQTT Publisher connecting to broker")
-        self.mqtt_client.connect(self.broker_host, self.broker_port, self.keep_alive_interval)
 
     def on_connect(self, client, userdata, flags, rc):
         """ The callback for when the client receives a CONNACK response from the server
@@ -220,7 +227,7 @@ class MqttPublisherClient(object):
 
         self.mqtt_client.on_disconnect = self.on_disconnect
 
-        self.mqtt_client.connect(self.broker_host, self.broker_port, self.keep_alive_interval)
+        con = self.mqtt_client.connect(self.broker_host, self.broker_port, self.keep_alive_interval)
         _LOGGER.info("MQTT connecting..., Broker Host: %s, Port: %s", self.broker_host, self.broker_port)
 
         self.mqtt_client.loop_start()
