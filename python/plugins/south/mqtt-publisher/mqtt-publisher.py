@@ -211,11 +211,17 @@ class MqttPublisherClient(object):
     def on_connect(self, client, userdata, flags, rc):
         """ The callback for when the client receives a CONNACK response from the server
         """
+        _LOGGER.error("Client connected")
         client.connected_flag = True
 
     def on_disconnect(self, client, userdata, rc):
+        _LOGGER.info("Client disconnected")
         self.mqtt_client.disconnect()
-        pass
+        client.connected_flag = False
+        try:
+            self.mqtt_client.reconnect()
+        except:
+            pass
 
     def start(self):
         _LOGGER.info("MQTT Publisher starting")
@@ -226,8 +232,17 @@ class MqttPublisherClient(object):
         self.mqtt_client.on_connect = self.on_connect
 
         self.mqtt_client.on_disconnect = self.on_disconnect
-
-        con = self.mqtt_client.connect(self.broker_host, self.broker_port, self.keep_alive_interval)
+        con = 1
+        try:
+            con = self.mqtt_client.connect(self.broker_host, self.broker_port, self.keep_alive_interval)
+        except:
+            pass
+        while con != 0:
+            _LOGGER.error("Connection failed, retrying...")
+            try:
+                con = self.mqtt_client.connect(self.broker_host, self.broker_port, self.keep_alive_interval)
+            except:
+                pass
         _LOGGER.info("MQTT connecting..., Broker Host: %s, Port: %s", self.broker_host, self.broker_port)
 
         self.mqtt_client.loop_start()
