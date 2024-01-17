@@ -83,11 +83,18 @@ _DEFAULT_CONFIG = {
         'displayName': 'Topic To Publish',
         'mandatory': 'true'
     },
+    'op_filter': {
+        'description': 'Filter the operation names to publish',
+        'type': 'string',
+        'default': '',
+        'order': '7',
+        'displayName': 'Operation name filter',
+    },
     'qos': {
         'description': 'The desired quality of service level for the subscription',
         'type': 'integer',
         'default': '0',
-        'order': '7',
+        'order': '8',
         'displayName': 'QoS Level',
         'minimum': '0',
         'maximum': '2'
@@ -161,6 +168,13 @@ def plugin_shutdown(handle):
         _LOGGER.info('MQTT south plugin shut down.')
 
 def plugin_operation(handle, operation, params):
+
+    _mqtt = handle["_mqtt"]
+
+    if _mqtt.op_filter != "":
+        if operation != _mqtt.op_filter:
+            return True
+
     x = json.dumps(operation)
     _LOGGER.debug("plugin_operation(): operation={}, params={}".format(operation, params))
     params_json = []
@@ -178,7 +192,7 @@ def plugin_operation(handle, operation, params):
         'parameters':params_json
     }
     payload_json = json.dumps(_MQQT_PAYLOAD)
-    handle["_mqtt"].mqtt_client.publish(str(operation),payload_json)
+    handle["_mqtt"].mqtt_client.publish(str(_mqtt.topic),payload_json)
     return True
 
 def plugin_register_ingest(handle, callback, ingest_ref):
@@ -194,7 +208,7 @@ def plugin_register_ingest(handle, callback, ingest_ref):
 
 class MqttPublisherClient(object):
 
-    __slots__ = ['mqtt_client', 'broker_host', 'broker_port', 'username', 'password', 'topic', 'qos', 'keep_alive_interval', 'loop']
+    __slots__ = ['mqtt_client', 'broker_host', 'broker_port', 'username', 'password', 'topic', 'op_filter', 'qos', 'keep_alive_interval', 'loop']
 
     def __init__(self, config):
         _LOGGER.info("MQTT Publisher initializing")
@@ -204,6 +218,13 @@ class MqttPublisherClient(object):
         self.username = config['username']['value']
         self.password = config['password']['value']
         self.topic = config['topic']['value']
+        self.op_filter = config['op_filter']['value']
+
+        if self.op_filter == "":
+            _LOGGER.info("Publishing all operations")
+        else:
+            _LOGGER.info("Publish only operations: " + self.op_filter)
+
         self.qos = int(config['qos']['value'])
         self.keep_alive_interval = int(config['keepAliveInterval']['value'])
         _LOGGER.info("MQTT Publisher connecting to broker")
