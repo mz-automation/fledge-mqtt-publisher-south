@@ -4,6 +4,7 @@ import asyncio
 import copy
 import json
 import logging
+import time
 
 import paho.mqtt.client as mqtt_client
 
@@ -15,7 +16,6 @@ from fledge.services.south import exceptions
 from fledge.services.south.ingest import Ingest
 
 from fledge.common import logger
-import json
 
 # MQTT config
 MQTT_BROKER = "localhost"
@@ -259,8 +259,9 @@ class MqttPublisherClient(object):
         except:
             pass
         while con != 0:
-            _LOGGER.error("Connection failed, retrying...")
+            _LOGGER.info("Connection failed, retrying...")
             try:
+                time.sleep(5)
                 con = self.mqtt_client.connect(self.broker_host, self.broker_port, self.keep_alive_interval)
             except:
                 pass
