@@ -173,6 +173,7 @@ def plugin_operation(handle, operation, params):
 
     if _mqtt.op_filter != "":
         if operation != _mqtt.op_filter:
+            _LOGGER.debug("plugin_operation(): operation {} does not match filter".format(operation))
             return True
 
     x = json.dumps(operation)
@@ -232,7 +233,7 @@ class MqttPublisherClient(object):
     def on_connect(self, client, userdata, flags, rc):
         """ The callback for when the client receives a CONNACK response from the server
         """
-        _LOGGER.error("Client connected")
+        _LOGGER.info("Client connected")
         client.connected_flag = True
 
     def on_disconnect(self, client, userdata, rc):
