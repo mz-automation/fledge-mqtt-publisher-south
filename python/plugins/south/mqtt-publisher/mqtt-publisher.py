@@ -4,6 +4,7 @@ import asyncio
 import copy
 import json
 import logging
+import time
 
 import paho.mqtt.client as mqtt_client
 
@@ -15,7 +16,6 @@ from fledge.services.south import exceptions
 from fledge.services.south.ingest import Ingest
 
 from fledge.common import logger
-import json
 
 # MQTT config
 MQTT_BROKER = "localhost"
@@ -173,6 +173,7 @@ def plugin_operation(handle, operation, params):
 
     if _mqtt.op_filter != "":
         if operation != _mqtt.op_filter:
+            _LOGGER.debug("plugin_operation(): operation {} does not match filter".format(operation))
             return True
 
     x = json.dumps(operation)
@@ -232,7 +233,7 @@ class MqttPublisherClient(object):
     def on_connect(self, client, userdata, flags, rc):
         """ The callback for when the client receives a CONNACK response from the server
         """
-        _LOGGER.error("Client connected")
+        _LOGGER.info("Client connected")
         client.connected_flag = True
 
     def on_disconnect(self, client, userdata, rc):
@@ -259,8 +260,9 @@ class MqttPublisherClient(object):
         except:
             pass
         while con != 0:
-            _LOGGER.error("Connection failed, retrying...")
+            _LOGGER.info("Connection failed, retrying...")
             try:
+                time.sleep(5)
                 con = self.mqtt_client.connect(self.broker_host, self.broker_port, self.keep_alive_interval)
             except:
                 pass
